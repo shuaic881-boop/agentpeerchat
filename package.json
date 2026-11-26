@@ -1,0 +1,98 @@
+{
+  "name": "agentpeerchat",
+  "version": "0.1.28",
+  "private": true,
+  "type": "module",
+  "description": "Built for agent-to-agent conversations. Connect your personal agents. Free to deploy on your own Cloudflare; your data, your control.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.15.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "DB": {
+        "description": "Stores identities, groups, messages and delivery acknowledgments in your own D1 database."
+      },
+      "SETUP_SECRET": {
+        "description": "Choose at least 24 random characters. Save this secret: enter it once on the first-run page to create the instance owner. Generate one with `openssl rand -hex 32`."
+      }
+    }
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "build:app": "node scripts/build-docs.mjs && node scripts/build-pwa.mjs && tsc --noEmit && wrangler deploy --dry-run --outdir dist",
+    "deploy": "npm run build:cli && npm run build:app && wrangler d1 migrations apply DB --remote && wrangler deploy",
+    "db:local": "wrangler d1 migrations apply DB --local",
+    "test": "node --test tests/*.test.mjs .test/*.test.mjs && node scripts/test-sqlite.mjs",
+    "check": "tsc --noEmit",
+    "setup:local": "node scripts/setup-local.mjs",
+    "client": "node scripts/agent.mjs",
+    "test:browser": "node scripts/browser-isolated.mjs",
+    "deploy:cli": "node scripts/deploy-cli.mjs",
+    "prepare:release": "node scripts/prepare-release.mjs",
+    "build:server": "npm run check && node scripts/build-server.mjs",
+    "start:server": "node server/start.mjs",
+    "test:sqlite": "node scripts/test-sqlite.mjs",
+    "test:browser:server": "node scripts/browser-isolated.mjs sqlite",
+    "site:deploy": "node scripts/deploy-website.mjs",
+    "build:cli": "node scripts/build-cli.mjs",
+    "build:dsh": "node scripts/build-dsh-plugin.mjs",
+    "pretest": "npm run build:cli",
+    "build:website": "node scripts/build-website.mjs",
+    "test:mobile": "node scripts/mobile-browser-check.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261002.1",
+    "agent-browser": "^0.38.2",
+    "esbuild": "^0.28.2",
+    "force-graph": "1.52.0",
+    "marked": "^18.0.14",
+    "miniflare": "^5.20261001.0-alpha",
+    "playwright": "1.56.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.146.0",
+    "ws": "8.21.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AgenticsWorks/AgentPeerChat.git"
+  },
+  "bin": {
+    "agentpeerchat": "./cli/agentpeerchat.mjs",
+    "agentgram": "./cli/agentpeerchat.mjs",
+    "agentpenpal": "./cli/agentpeerchat.mjs"
+  },
+  "files": [
+    "cli/agentpeerchat.mjs",
+    "scripts/agent.mjs",
+    "scripts/client-transport.mjs",
+    "scripts/doctor.mjs",
+    "scripts/session-wake.mjs",
+    "scripts/install.mjs",
+    "scripts/pairing-client.mjs",
+    "skills/agentpeerchat/SKILL.md",
+    "LICENSE",
+    "scripts/automation.mjs",
+    "skills/agentpeerchat/references",
+    "scripts/realtime-client.mjs",
+    "scripts/websocket-transport.mjs",
+    "scripts/vendor-websocket.mjs",
+    "scripts/listener-process.mjs",
+    "scripts/onboarding.mjs",
+    "scripts/connection-packet.mjs",
+    "scripts/private-profile.mjs",
+    "scripts/native-wake.mjs",
+    "scripts/runtime-result.mjs",
+    "scripts/dsh-onboarding.mjs",
+    "scripts/native-runtime.mjs",
+    "scripts/native-mailbox.mjs",
+    "scripts/runtime-host.mjs",
+    "scripts/direct-delivery.mjs",
+    "scripts/cloudflare-tunnel.mjs",
+    "public/agentpeerchat-dsh.mjs",
+    "scripts/native-host-cli.mjs"
+  ],
+  "dependencies": {
+    "@block65/webcrypto-web-push": "2.0.0"
+  }
+}

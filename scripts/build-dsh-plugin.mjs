@@ -1,0 +1,10 @@
+import {build} from 'esbuild';
+import {mkdir,writeFile,copyFile} from 'node:fs/promises';
+import {dshManifest} from './dsh-onboarding.mjs';
+const directory='dist/dsh-plugin';await mkdir(directory,{recursive:true});
+await build({entryPoints:['integrations/dsh/index.mjs'],bundle:true,format:'esm',platform:'node',target:'node22',outfile:directory+'/index.mjs',external:['@deepseek-ai/*']});
+await copyFile('LICENSE',directory+'/LICENSE');
+await copyFile('integrations/dsh/cordis.patch.yml',directory+'/cordis.patch.yml');
+await writeFile(directory+'/package.json',JSON.stringify(dshManifest(),null,2)+'\n');
+await copyFile(directory+'/index.mjs','public/agentpeerchat-dsh.mjs');
+console.log('Built DSH-native AgentPeerChat plugin. No credentials or model accounts included.');

@@ -1,0 +1,94 @@
+{
+  "auditedAt": "2026-10-12T05:04:50.678099+00:00",
+  "complete": false,
+  "requirements": [
+    {
+      "requirement": "Cloudflare Worker + D1 deployment with no purchased domain; cost limits explained",
+      "status": "verified for CLI deployment",
+      "evidence": [
+        "docs/fresh-install-verification.json",
+        "docs/cloudflare-verification.json",
+        "docs/deployment.md",
+        "docs/install-agent.md"
+      ]
+    },
+    {
+      "requirement": "Cloudflare website configuration and agent-assisted credential/deployment instructions",
+      "status": "documented; authenticated dashboard path not end-to-end verified",
+      "evidence": [
+        "docs/deployment.md",
+        "docs/getting-started.en.md",
+        "docs/install-agent.md"
+      ]
+    },
+    {
+      "requirement": "Public one-click deployment",
+      "status": "public source and installer redirect verified; interactive provisioning remains unverified",
+      "evidence": [
+        "docs/deploy-button-verification.json"
+      ],
+      "remaining": "Source is now public. The authenticated Cloudflare browser authorization, provisioning, migrations and first-owner initialization through the Deploy button still need their own end-to-end verification."
+    },
+    {
+      "requirement": "Owner can observe all Agent conversations and understand sender/recipient without pretending to be an Agent",
+      "status": "verified",
+      "evidence": [
+        "docs/browser-verification.json",
+        "public/app.js",
+        "public/chat-presentation.js",
+        "scripts/browser-check.mjs"
+      ],
+      "checks": [
+        "Owner observes an Agent-only DM with directional sender labels",
+        "Observer composer is read-only",
+        "Joining creates a separate group and preserves original DM",
+        "Native Agent perspective remains read-only and retains the owner session",
+        "Force Graph canvas and zoom/fit controls render in the real browser"
+      ]
+    },
+    {
+      "requirement": "Agent-native positioning and comparisons with Telegram, Slack, Raft Build and AgentMail",
+      "status": "implemented and rendered",
+      "evidence": [
+        "README.md",
+        "README.zh-CN.md",
+        "docs/product.md",
+        "website/index.html",
+        "scripts/verify-website.mjs"
+      ]
+    },
+    {
+      "requirement": "Open source and private ownership",
+      "status": "public MIT repository; account-owned private deployment",
+      "evidence": [
+        "LICENSE",
+        "README.md",
+        "src/index.ts",
+        "src/security.ts",
+        "docs/deploy-button-verification.json"
+      ]
+    },
+    {
+      "requirement": "Real Agent communication via one CLI and skill",
+      "status": "verified with native Codex and Claude Code clients",
+      "evidence": [
+        "docs/native-skills-verification.json"
+      ],
+      "limit": "Claude Code client used GLM; Grok/Muse/Dots/Cue account execution has not been tested."
+    },
+    {
+      "requirement": "Copied installation command and automatic model wake-up",
+      "status": "verified: combined skill/listener installation, two native scheduled replies, actual queued delivery, cancellation and listener removal",
+      "evidence": [
+        "tests/copied-command.test.mjs",
+        "docs/scheduled-check-verification.json"
+      ],
+      "limit": "Temporary verification timer removed; no permanent user-agent tasks configured."
+    }
+  ],
+  "version": "0.1.11",
+  "limits": [
+    "The audit does not certify unavailable Dots/Grok Bot/Muse/Cue accounts or their host schedulers.",
+    "A CLI connection and installed skill are distinct from a verified recurring model wake-up."
+  ]
+}

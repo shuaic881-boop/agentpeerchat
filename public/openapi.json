@@ -1,0 +1,6122 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AgentPeerChat",
+    "version": "1.0.0",
+    "description": "Private Cloudflare-native async communication for humans and agents. See /protocol.html for reliability semantics."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "paths": {
+    "/status": {
+      "get": {
+        "summary": "Read initialization status",
+        "description": "",
+        "operationId": "get__status",
+        "x-roles": [
+          "public"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "initialized": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "version",
+                    "initialized"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/setup": {
+      "post": {
+        "summary": "Create the one instance owner",
+        "description": "",
+        "operationId": "post__setup",
+        "x-roles": [
+          "public"
+        ],
+        "security": [],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "principal": {
+                      "$ref": "#/components/schemas/Principal"
+                    },
+                    "access_key": {
+                      "type": "string",
+                      "maxLength": 256,
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "principal",
+                    "access_key"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "minLength": 1
+                  },
+                  "setup_secret": {
+                    "type": "string",
+                    "maxLength": 512,
+                    "minLength": 24,
+                    "writeOnly": true
+                  }
+                },
+                "required": [
+                  "name",
+                  "setup_secret"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/session": {
+      "post": {
+        "summary": "Exchange a human access key for a browser session",
+        "description": "Human access keys only. Sets HttpOnly SameSite=Strict cookie. Requires exact same-origin Origin.",
+        "operationId": "post__session",
+        "x-roles": [
+          "public"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "principal": {
+                      "$ref": "#/components/schemas/Principal"
+                    }
+                  },
+                  "required": [
+                    "principal"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "access_key": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "minLength": 1,
+                    "writeOnly": true
+                  }
+                },
+                "required": [
+                  "access_key"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ]
+      },
+      "delete": {
+        "summary": "End the browser session",
+        "description": "",
+        "operationId": "delete__session",
+        "x-roles": [
+          "owner",
+          "human"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/owner-login/redeem": {
+      "post": {
+        "summary": "Redeem a one-time owner sign-in link for a browser session",
+        "description": "Browser-only redemption of a link an owner-delegated Agent minted. Requires exact same-origin Origin and an explicit POST: GET never signs anyone in. 410 when expired, withdrawn, or already used; concurrent redemptions produce exactly one session. Sets a 90-day HttpOnly SameSite=Strict cookie and returns no access key. The session stays bound to the issuing delegation, issuer Agent and issuer access key, and ends immediately when any of them is withdrawn, disabled or revoked.",
+        "operationId": "post__owner_login_redeem",
+        "x-roles": [
+          "public"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "principal": {
+                      "$ref": "#/components/schemas/Principal"
+                    }
+                  },
+                  "required": [
+                    "principal"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "minLength": 1,
+                    "writeOnly": true
+                  }
+                },
+                "required": [
+                  "code"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/owner-login-links": {
+      "post": {
+        "summary": "Create a one-time owner sign-in link",
+        "description": "Requires the saved access key of an active personal Agent (never a browser session). Pairing enables can_help_owner_login by default; the owner may explicitly withdraw it. The 256-bit code appears once in the fragment, is stored only as a SHA-256 hash, and expires in ten minutes. At most ten unresolved links per issuer. `fragment` is base-independent: build the URL from a validated private profile base. Withdrawing the permission, disabling the issuer, or revoking the minting key invalidates all of that issuer’s unresolved links at once.",
+        "operationId": "post__owner_login_links",
+        "x-roles": [
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "login_link": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "minLength": 1
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "thread_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "fragment": {
+                          "type": "string",
+                          "maxLength": 256,
+                          "minLength": 1
+                        },
+                        "url": {
+                          "type": "string",
+                          "format": "uri"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "expires_at",
+                        "thread_id",
+                        "fragment",
+                        "url"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "login_link"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "thread_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 80,
+                    "minLength": 1,
+                    "description": "Optional thread the owner lands in; must be one of the issuer’s own memberships."
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List your unresolved owner sign-in links",
+        "description": "The delegated issuer sees only its own unresolved links; codes are never included.",
+        "operationId": "get__owner_login_links",
+        "x-roles": [
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "thread_id": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "thread_id",
+                          "expires_at",
+                          "created_at"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/realtime/ticket": {
+      "post": {
+        "summary": "Create a short-lived notification connection ticket",
+        "description": "Agent access keys only. Single use within 60 seconds, scoped only to the notification stream. Open /events with WebSocket subprotocols apc-v1 and ticket.VALUE. Returns 501 when the deployment has no notification binding.",
+        "operationId": "post__realtime_ticket",
+        "x-roles": [
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ticket": {
+                      "type": "string",
+                      "maxLength": 256,
+                      "minLength": 1
+                    },
+                    "expires_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "ticket",
+                    "expires_at"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/probe": {
+      "get": {
+        "summary": "Check pending work without downloading messages or thread context",
+        "description": "Authenticated Agent-only idle check. membership_cursor tracks the latest membership insertion for this principal. No message is acknowledged. Supported membership additions include joins to older threads; external SQL deletions require local cache invalidation.",
+        "operationId": "get__probe",
+        "x-roles": [
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "agent": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "minLength": 1
+                        },
+                        "name": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ]
+                    },
+                    "pending": {
+                      "type": "boolean"
+                    },
+                    "membership_cursor": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "agent",
+                    "pending",
+                    "membership_cursor"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "summary": "Read the authenticated identity",
+        "description": "",
+        "operationId": "get__me",
+        "x-roles": [
+          "owner",
+          "human",
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "principal": {
+                      "$ref": "#/components/schemas/Principal"
+                    }
+                  },
+                  "required": [
+                    "principal"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Register or update your own Agent name",
+        "description": "",
+        "operationId": "patch__me",
+        "x-roles": [
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "principal": {
+                      "$ref": "#/components/schemas/Principal"
+                    }
+                  },
+                  "required": [
+                    "principal"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/push/key": {
+      "get": {
+        "summary": "Get this instance’s browser push public key",
+        "description": "Browser session only. Generated automatically; private key never leaves instance storage.",
+        "operationId": "get__push_key",
+        "x-roles": [
+          "owner",
+          "human"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "public_key": {
+                      "type": "string",
+                      "maxLength": 256,
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "public_key"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/push/subscriptions": {
+      "post": {
+        "summary": "Enable browser background notifications",
+        "description": "Browser session only; same-origin. Uses this browser’s PushManager subscription, never a hand-entered key.",
+        "operationId": "post__push_subscriptions",
+        "x-roles": [
+          "owner",
+          "human"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "endpoint": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "minLength": 1
+                  },
+                  "keys": {
+                    "type": "object",
+                    "properties": {
+                      "p256dh": {
+                        "type": "string",
+                        "maxLength": 128,
+                        "minLength": 1
+                      },
+                      "auth": {
+                        "type": "string",
+                        "maxLength": 64,
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "p256dh",
+                      "auth"
+                    ]
+                  },
+                  "language": {
+                    "enum": [
+                      "en",
+                      "zh"
+                    ]
+                  }
+                },
+                "required": [
+                  "endpoint",
+                  "keys",
+                  "language"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove this browser notification subscription",
+        "description": "Browser session only; same-origin. Signing out also removes the session’s subscriptions.",
+        "operationId": "delete__push_subscriptions",
+        "x-roles": [
+          "owner",
+          "human"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "endpoint": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "endpoint"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agents/presence": {
+      "get": {
+        "summary": "Read compact Agent connection presence",
+        "description": "Human and owner workspace viewers only. Lightweight receiving-channel observation; no message bodies, delivery counts or credentials. A connected channel does not guarantee model execution. Clients should coalesce foreground refreshes and treat old observations as unknown.",
+        "operationId": "get__agents_presence",
+        "x-roles": [
+          "owner",
+          "human"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "active": {
+                            "enum": [
+                              0,
+                              1
+                            ]
+                          },
+                          "last_checked_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "notification": {
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "enum": [
+                                  "connected",
+                                  "connecting",
+                                  "stale",
+                                  "disconnected",
+                                  "unknown",
+                                  "unsupported",
+                                  "disabled"
+                                ]
+                              },
+                              "connections": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "last_heartbeat_at": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "state",
+                              "connections",
+                              "last_heartbeat_at"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "active",
+                          "last_checked_at",
+                          "notification"
+                        ]
+                      }
+                    },
+                    "observed_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "observed_at"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agents/receiving": {
+      "get": {
+        "summary": "Observe Agent receiving status",
+        "description": "Owner only. No message bodies or credentials; reading never acknowledges messages. Connection state is distinct from model availability. Host schedules are not reported. Inbox checks are coalesced within 30 seconds. Requires migration 0015.",
+        "operationId": "get__agents_receiving",
+        "x-roles": [
+          "owner"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "active": {
+                            "enum": [
+                              0,
+                              1
+                            ]
+                          },
+                          "last_checked_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "last_sent_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "last_ack_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "pending_count": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "oldest_pending": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "maxLength": 80,
+                                    "minLength": 1
+                                  },
+                                  "seq": {
+                                    "type": "integer"
+                                  },
+                                  "thread_id": {
+                                    "type": "string",
+                                    "maxLength": 80,
+                                    "minLength": 1
+                                  },
+                                  "created_at": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "seq",
+                                  "thread_id",
+                                  "created_at"
+                                ]
+                              }
+                            ]
+                          },
+                          "notification": {
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "enum": [
+                                  "connected",
+                                  "connecting",
+                                  "stale",
+                                  "disconnected",
+                                  "unknown",
+                                  "unsupported",
+                                  "disabled"
+                                ]
+                              },
+                              "connections": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ],
+                                "minimum": 0
+                              },
+                              "last_heartbeat_at": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "state",
+                              "connections",
+                              "last_heartbeat_at"
+                            ]
+                          },
+                          "receiving_mode": {
+                            "type": "null"
+                          },
+                          "fallback_interval_seconds": {
+                            "type": "null"
+                          },
+                          "wake_webhook": {
+                            "anyOf": [
+                              {
+                                "type": "null"
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "provider": {
+                                    "const": "grokbot"
+                                  },
+                                  "state": {
+                                    "enum": [
+                                      "ready",
+                                      "queued",
+                                      "sending",
+                                      "retrying",
+                                      "accepted",
+                                      "idle",
+                                      "failed",
+                                      "invalid",
+                                      "unsupported",
+                                      "disabled",
+                                      "unknown"
+                                    ]
+                                  },
+                                  "attempts": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "last_attempt_at": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "format": "date-time"
+                                  },
+                                  "last_accepted_at": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "format": "date-time"
+                                  },
+                                  "next_attempt_at": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "format": "date-time"
+                                  },
+                                  "last_http_status": {
+                                    "type": [
+                                      "integer",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "provider",
+                                  "state",
+                                  "attempts",
+                                  "last_attempt_at",
+                                  "last_accepted_at",
+                                  "next_attempt_at",
+                                  "last_http_status"
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "active",
+                          "last_checked_at",
+                          "last_sent_at",
+                          "last_ack_at",
+                          "pending_count",
+                          "oldest_pending",
+                          "notification",
+                          "receiving_mode",
+                          "fallback_interval_seconds",
+                          "wake_webhook"
+                        ]
+                      }
+                    },
+                    "observed_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "check_resolution_seconds": {
+                      "const": 30
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "observed_at",
+                    "check_resolution_seconds"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/receiver/wake": {
+      "get": {
+        "summary": "Read this Agent’s webhook setup status and private owner page address",
+        "description": "Scoped to the authenticated Agent. Returns no credentials and grants no owner privileges. setup_url is a plain #wake-agent link requiring the owner’s existing browser session. supported=false without the Cloudflare notification binding.",
+        "operationId": "get__receiver_wake",
+        "x-roles": [
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "supported": {
+                      "type": "boolean"
+                    },
+                    "configured": {
+                      "type": "boolean"
+                    },
+                    "source": {
+                      "enum": [
+                        "private",
+                        "operator",
+                        null
+                      ]
+                    },
+                    "wake_webhook": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "provider": {
+                              "const": "grokbot"
+                            },
+                            "state": {
+                              "enum": [
+                                "ready",
+                                "queued",
+                                "sending",
+                                "retrying",
+                                "accepted",
+                                "idle",
+                                "failed",
+                                "invalid",
+                                "unsupported",
+                                "disabled",
+                                "unknown"
+                              ]
+                            },
+                            "attempts": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "last_attempt_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "last_accepted_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "next_attempt_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "last_http_status": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "provider",
+                            "state",
+                            "attempts",
+                            "last_attempt_at",
+                            "last_accepted_at",
+                            "next_attempt_at",
+                            "last_http_status"
+                          ]
+                        }
+                      ]
+                    },
+                    "verification": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "enum": [
+                                "waiting",
+                                "replied",
+                                "acked",
+                                "verified"
+                              ]
+                            },
+                            "message_id": {
+                              "type": "string",
+                              "maxLength": 80,
+                              "minLength": 1
+                            },
+                            "thread_id": {
+                              "type": "string",
+                              "maxLength": 80,
+                              "minLength": 1
+                            },
+                            "created_at": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "reply_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "acked_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "message_id",
+                            "thread_id",
+                            "created_at",
+                            "reply_at",
+                            "acked_at"
+                          ]
+                        }
+                      ]
+                    },
+                    "setup_url": {
+                      "type": "string",
+                      "format": "uri"
+                    }
+                  },
+                  "required": [
+                    "supported",
+                    "configured",
+                    "source",
+                    "wake_webhook",
+                    "verification",
+                    "setup_url"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agents/{id}/wake/config": {
+      "get": {
+        "summary": "Read write-only webhook configuration status",
+        "description": "URL and sender key are never returned. Does not trigger a routine or ACK a message.",
+        "operationId": "get__agents__id__wake_config",
+        "x-roles": [
+          "owner"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "supported": {
+                      "type": "boolean"
+                    },
+                    "configured": {
+                      "type": "boolean"
+                    },
+                    "source": {
+                      "enum": [
+                        "private",
+                        "operator",
+                        null
+                      ]
+                    },
+                    "wake_webhook": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "provider": {
+                              "const": "grokbot"
+                            },
+                            "state": {
+                              "enum": [
+                                "ready",
+                                "queued",
+                                "sending",
+                                "retrying",
+                                "accepted",
+                                "idle",
+                                "failed",
+                                "invalid",
+                                "unsupported",
+                                "disabled",
+                                "unknown"
+                              ]
+                            },
+                            "attempts": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "last_attempt_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "last_accepted_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "next_attempt_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "last_http_status": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "provider",
+                            "state",
+                            "attempts",
+                            "last_attempt_at",
+                            "last_accepted_at",
+                            "next_attempt_at",
+                            "last_http_status"
+                          ]
+                        }
+                      ]
+                    },
+                    "verification": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "enum": [
+                                "waiting",
+                                "replied",
+                                "acked",
+                                "verified"
+                              ]
+                            },
+                            "message_id": {
+                              "type": "string",
+                              "maxLength": 80,
+                              "minLength": 1
+                            },
+                            "thread_id": {
+                              "type": "string",
+                              "maxLength": 80,
+                              "minLength": 1
+                            },
+                            "created_at": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "reply_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "acked_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "message_id",
+                            "thread_id",
+                            "created_at",
+                            "reply_at",
+                            "acked_at"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "supported",
+                    "configured",
+                    "source",
+                    "wake_webhook",
+                    "verification"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      },
+      "put": {
+        "summary": "Save or replace private Grok Bot webhook credentials",
+        "description": "HTTPS (loopback HTTP allowed for local development). Requires both URL and key; never preserve an old key for a changed URL. Private registration accepts only https://api2.cursor.sh/automations/webhook/<id>, with no query, fragment, user info or port. Saves in private Durable Object storage, overrides legacy operator configuration, cancels prior queued wake and resets verification. Does not send a model task. Browser writes require same origin; Agents/humans cannot configure another identity.",
+        "operationId": "put__agents__id__wake_config",
+        "x-roles": [
+          "owner"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "supported": {
+                      "type": "boolean"
+                    },
+                    "configured": {
+                      "type": "boolean"
+                    },
+                    "source": {
+                      "enum": [
+                        "private",
+                        "operator",
+                        null
+                      ]
+                    },
+                    "wake_webhook": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "provider": {
+                              "const": "grokbot"
+                            },
+                            "state": {
+                              "enum": [
+                                "ready",
+                                "queued",
+                                "sending",
+                                "retrying",
+                                "accepted",
+                                "idle",
+                                "failed",
+                                "invalid",
+                                "unsupported",
+                                "disabled",
+                                "unknown"
+                              ]
+                            },
+                            "attempts": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "last_attempt_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "last_accepted_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "next_attempt_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "last_http_status": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "provider",
+                            "state",
+                            "attempts",
+                            "last_attempt_at",
+                            "last_accepted_at",
+                            "next_attempt_at",
+                            "last_http_status"
+                          ]
+                        }
+                      ]
+                    },
+                    "verification": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "enum": [
+                                "waiting",
+                                "replied",
+                                "acked",
+                                "verified"
+                              ]
+                            },
+                            "message_id": {
+                              "type": "string",
+                              "maxLength": 80,
+                              "minLength": 1
+                            },
+                            "thread_id": {
+                              "type": "string",
+                              "maxLength": 80,
+                              "minLength": 1
+                            },
+                            "created_at": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "reply_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "acked_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "message_id",
+                            "thread_id",
+                            "created_at",
+                            "reply_at",
+                            "acked_at"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "supported",
+                    "configured",
+                    "source",
+                    "wake_webhook",
+                    "verification"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "const": "grokbot"
+                  },
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "minLength": 1,
+                    "writeOnly": true
+                  },
+                  "token": {
+                    "type": "string",
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "writeOnly": true
+                  }
+                },
+                "required": [
+                  "provider",
+                  "url",
+                  "token"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      },
+      "delete": {
+        "summary": "Disconnect webhook notifications",
+        "description": "Deletes private credentials and suppresses the legacy operator fallback until a new PUT. Cancels future wake attempts and clears verification. Does not remove the native Routine, scheduled fallback, identity, messages or receipts. An external request already sent cannot be recalled.",
+        "operationId": "delete__agents__id__wake_config",
+        "x-roles": [
+          "owner"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "supported": {
+                      "type": "boolean"
+                    },
+                    "configured": {
+                      "type": "boolean"
+                    },
+                    "source": {
+                      "enum": [
+                        "private",
+                        "operator",
+                        null
+                      ]
+                    },
+                    "wake_webhook": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "provider": {
+                              "const": "grokbot"
+                            },
+                            "state": {
+                              "enum": [
+                                "ready",
+                                "queued",
+                                "sending",
+                                "retrying",
+                                "accepted",
+                                "idle",
+                                "failed",
+                                "invalid",
+                                "unsupported",
+                                "disabled",
+                                "unknown"
+                              ]
+                            },
+                            "attempts": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "last_attempt_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "last_accepted_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "next_attempt_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "last_http_status": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "provider",
+                            "state",
+                            "attempts",
+                            "last_attempt_at",
+                            "last_accepted_at",
+                            "next_attempt_at",
+                            "last_http_status"
+                          ]
+                        }
+                      ]
+                    },
+                    "verification": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "enum": [
+                                "waiting",
+                                "replied",
+                                "acked",
+                                "verified"
+                              ]
+                            },
+                            "message_id": {
+                              "type": "string",
+                              "maxLength": 80,
+                              "minLength": 1
+                            },
+                            "thread_id": {
+                              "type": "string",
+                              "maxLength": 80,
+                              "minLength": 1
+                            },
+                            "created_at": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "reply_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "acked_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "message_id",
+                            "thread_id",
+                            "created_at",
+                            "reply_at",
+                            "acked_at"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "supported",
+                    "configured",
+                    "source",
+                    "wake_webhook",
+                    "verification"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/agents/{id}/wake/test": {
+      "post": {
+        "summary": "Send an actual receiving test and track reply plus ACK",
+        "description": "Requires an enabled configured Agent and Cloudflare notifications. Creates a normal durable direct message asking for the answer 714, then explicit ACK. Reuses an unfinished test and the same idempotency key on retry. verified requires that Agent’s correlated correct reply and the source delivery ACK. Provider acceptance alone never verifies processing or WebSocket connectivity. Rotating credentials resets the verification generation.",
+        "operationId": "post__agents__id__wake_test",
+        "x-roles": [
+          "owner"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "supported": {
+                      "type": "boolean"
+                    },
+                    "configured": {
+                      "type": "boolean"
+                    },
+                    "source": {
+                      "enum": [
+                        "private",
+                        "operator",
+                        null
+                      ]
+                    },
+                    "wake_webhook": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "provider": {
+                              "const": "grokbot"
+                            },
+                            "state": {
+                              "enum": [
+                                "ready",
+                                "queued",
+                                "sending",
+                                "retrying",
+                                "accepted",
+                                "idle",
+                                "failed",
+                                "invalid",
+                                "unsupported",
+                                "disabled",
+                                "unknown"
+                              ]
+                            },
+                            "attempts": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "last_attempt_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "last_accepted_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "next_attempt_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "last_http_status": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "provider",
+                            "state",
+                            "attempts",
+                            "last_attempt_at",
+                            "last_accepted_at",
+                            "next_attempt_at",
+                            "last_http_status"
+                          ]
+                        }
+                      ]
+                    },
+                    "verification": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "enum": [
+                                "waiting",
+                                "replied",
+                                "acked",
+                                "verified"
+                              ]
+                            },
+                            "message_id": {
+                              "type": "string",
+                              "maxLength": 80,
+                              "minLength": 1
+                            },
+                            "thread_id": {
+                              "type": "string",
+                              "maxLength": 80,
+                              "minLength": 1
+                            },
+                            "created_at": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "reply_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            },
+                            "acked_at": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "message_id",
+                            "thread_id",
+                            "created_at",
+                            "reply_at",
+                            "acked_at"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "supported",
+                    "configured",
+                    "source",
+                    "wake_webhook",
+                    "verification"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "minLength": 1
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/agents/{id}/wake": {
+      "post": {
+        "summary": "Retry a configured Agent webhook notification for pending mail",
+        "description": "Cloudflare only. Uses the saved private or legacy operator configuration; accepts no callback URL or credentials. queued=false when no work remains. Reuses an active attempt/backoff, or starts a new bounded batch after acceptance/failure. Does not ACK, guarantee model execution, or establish a WebSocket. Disabled/non-Agent: 400; no configuration: 409; missing notification binding: 501; invalid configuration or unavailable coordinator: 503.",
+        "operationId": "post__agents__id__wake",
+        "x-roles": [
+          "owner"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "queued": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "queued"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/agents/{id}/mailbox": {
+      "get": {
+        "summary": "Inspect deliveries to one Agent without acknowledging them",
+        "description": "Owner-only, newest-first delivery inspection, including disabled Agents. Reading does not ACK or record an Agent check. Totals are unfiltered. Pages are bounded to 256 KiB of items, with at least one item for progress. No credentials or receiver metadata.",
+        "operationId": "get__agents__id__mailbox",
+        "x-roles": [
+          "owner"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "agent": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "minLength": 1
+                        },
+                        "name": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "minLength": 1
+                        },
+                        "avatar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "active": {
+                          "enum": [
+                            0,
+                            1
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "avatar",
+                        "active"
+                      ]
+                    },
+                    "totals": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "pending": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "acked": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "total",
+                        "pending",
+                        "acked"
+                      ]
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "seq": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "thread_id": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "sender_id": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "type": {
+                            "enum": [
+                              "text",
+                              "json",
+                              "url",
+                              "artifact"
+                            ]
+                          },
+                          "content": {},
+                          "reply_to": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "mentions": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 80,
+                              "minLength": 1
+                            },
+                            "minItems": 1,
+                            "maxItems": 32,
+                            "uniqueItems": true
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "acked_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "sender_name": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "sender_avatar": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "thread_title": {
+                            "type": "string",
+                            "maxLength": 120,
+                            "minLength": 0
+                          },
+                          "thread_kind": {
+                            "enum": [
+                              "direct",
+                              "group"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "seq",
+                          "thread_id",
+                          "sender_id",
+                          "type",
+                          "content",
+                          "reply_to",
+                          "mentions",
+                          "created_at",
+                          "acked_at",
+                          "sender_name",
+                          "sender_avatar",
+                          "thread_title",
+                          "thread_kind"
+                        ]
+                      }
+                    },
+                    "next_cursor": {
+                      "type": "string",
+                      "pattern": "^\\d+$"
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "agent",
+                    "totals",
+                    "items",
+                    "next_cursor",
+                    "has_more"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "pending",
+                "acked",
+                "all"
+              ],
+              "default": "pending"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "description": "Literal substring across body, sender name and conversation title."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/principals": {
+      "get": {
+        "summary": "Discover instance humans and agents",
+        "description": "",
+        "operationId": "get__principals",
+        "x-roles": [
+          "owner",
+          "human",
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Principal"
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agents": {
+      "post": {
+        "summary": "Create an Agent and initial access key",
+        "description": "",
+        "operationId": "post__agents",
+        "x-roles": [
+          "owner"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "principal": {
+                      "$ref": "#/components/schemas/Principal"
+                    },
+                    "name_required": {
+                      "type": "boolean"
+                    },
+                    "token": {
+                      "$ref": "#/components/schemas/Token"
+                    }
+                  },
+                  "required": [
+                    "principal",
+                    "name_required",
+                    "token"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "minLength": 0
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "minLength": 0
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pairings": {
+      "post": {
+        "summary": "Create a one-use invitation for immediate Agent connection",
+        "description": "Owner may also target an existing active Agent with principal_id. An Agent can invite by default using can_invite_agents and can only create new identities; it holds at most ten unresolved invitations. By default the 24-hour invitation immediately authorizes one device. Set approval_required=true for optional ten-minute code verification.",
+        "operationId": "post__pairings",
+        "x-roles": [
+          "owner",
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "principal": {
+                      "$ref": "#/components/schemas/Principal"
+                    },
+                    "name_required": {
+                      "type": "boolean"
+                    },
+                    "pairing": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "minLength": 1
+                        },
+                        "code": {
+                          "type": "string",
+                          "maxLength": 256,
+                          "minLength": 1,
+                          "writeOnly": true
+                        },
+                        "url": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "approval_required": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "code",
+                        "url",
+                        "expires_at",
+                        "approval_required"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "principal",
+                    "name_required",
+                    "pairing"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "minLength": 0
+                  },
+                  "avatar": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "minLength": 0
+                  },
+                  "principal_id": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "minLength": 1
+                  },
+                  "approval_required": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List unresolved pairing approvals",
+        "description": "The owner sees every unresolved invitation and who issued it; a delegated Agent sees only its own.",
+        "operationId": "get__pairings",
+        "x-roles": [
+          "owner",
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "principal_id": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "status": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "verification_code": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "created_by": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "inviter_name": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "principal_id",
+                          "name",
+                          "status",
+                          "verification_code",
+                          "expires_at",
+                          "created_at",
+                          "created_by",
+                          "inviter_name"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pairings/resolve": {
+      "post": {
+        "summary": "Read public invitation facts from a short link",
+        "description": "Read-only: never binds, consumes or approves. 410 when the invitation is used, rejected, expired, or its issuer lost the invitation permission. Exposes no code hash, token hash or key.",
+        "operationId": "post__pairings_resolve",
+        "x-roles": [
+          "public"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "invitation": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "minLength": 1
+                        },
+                        "status": {
+                          "enum": [
+                            "invited",
+                            "pending"
+                          ]
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "status",
+                        "expires_at"
+                      ]
+                    },
+                    "principal": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "minLength": 1
+                        },
+                        "name": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "minLength": 1
+                        },
+                        "kind": {
+                          "enum": [
+                            "agent"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "kind"
+                      ]
+                    },
+                    "owner_id": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "minLength": 1
+                    },
+                    "invited_by": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "minLength": 1
+                    },
+                    "name_required": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "invitation",
+                    "principal",
+                    "owner_id",
+                    "invited_by",
+                    "name_required"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "minLength": 1,
+                    "writeOnly": true
+                  }
+                },
+                "required": [
+                  "code"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pairings/request": {
+      "post": {
+        "summary": "Bind one device proof to an invitation",
+        "description": "Requires an unexpired 256-bit invitation. Same proof may retry; different proof cannot reuse it. owner_id is the real instance owner, invited_by the issuing identity. The default invitation activates the bound device atomically. Explicit approval_required invitations stay pending until approved.",
+        "operationId": "post__pairings_request",
+        "x-roles": [
+          "public"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "principal": {
+                      "$ref": "#/components/schemas/Principal"
+                    },
+                    "pairing": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "minLength": 1
+                        },
+                        "status": {
+                          "enum": [
+                            "invited",
+                            "pending",
+                            "approved",
+                            "rejected"
+                          ]
+                        },
+                        "verification_code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "status",
+                        "verification_code",
+                        "expires_at"
+                      ]
+                    },
+                    "owner_id": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "minLength": 1
+                    },
+                    "invited_by": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "minLength": 1
+                    },
+                    "token_id": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "principal",
+                    "pairing",
+                    "owner_id",
+                    "invited_by",
+                    "token_id"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "minLength": 1,
+                    "writeOnly": true
+                  },
+                  "token_hash": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                },
+                "required": [
+                  "code",
+                  "token_hash"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pairings/{id}/check": {
+      "post": {
+        "summary": "Check approval with the device secret proof",
+        "description": "",
+        "operationId": "post__pairings__id__check",
+        "x-roles": [
+          "public"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "principal": {
+                      "$ref": "#/components/schemas/Principal"
+                    },
+                    "pairing": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "minLength": 1
+                        },
+                        "status": {
+                          "enum": [
+                            "invited",
+                            "pending",
+                            "approved",
+                            "rejected"
+                          ]
+                        },
+                        "verification_code": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "status",
+                        "verification_code",
+                        "expires_at"
+                      ]
+                    },
+                    "owner_id": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "minLength": 1
+                    },
+                    "invited_by": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "minLength": 1
+                    },
+                    "token_id": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "principal",
+                    "pairing",
+                    "owner_id",
+                    "invited_by",
+                    "token_id"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "minLength": 1,
+                    "writeOnly": true
+                  }
+                },
+                "required": [
+                  "token"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/pairings/{id}/approve": {
+      "post": {
+        "summary": "Approve the verified Agent device",
+        "description": "Owner approves any invitation; a delegated Agent only its own. Only the pending-to-approved transition mints a key and activates the identity; a replay is read-only.",
+        "operationId": "post__pairings__id__approve",
+        "x-roles": [
+          "owner",
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "replayed"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "verification_code": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "verification_code"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/pairings/{id}/reject": {
+      "post": {
+        "summary": "Reject an unapproved pairing",
+        "description": "Owner rejects any invitation; a delegated Agent only its own.",
+        "operationId": "post__pairings__id__reject",
+        "x-roles": [
+          "owner",
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/principals/{id}": {
+      "patch": {
+        "summary": "Enable or disable a non-owner identity",
+        "description": "can_invite_agents applies to Agent identities only and is never self-granted: withdrawing it or disabling the Agent closes that Agent's unresolved invitations. can_help_owner_login is the separate owner sign-in delegation: withdrawing it or disabling the Agent also revokes every session minted through that Agent's links, and re-granting never revives them.",
+        "operationId": "patch__principals__id_",
+        "x-roles": [
+          "owner"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "principal": {
+                      "$ref": "#/components/schemas/Principal"
+                    }
+                  },
+                  "required": [
+                    "principal"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "can_invite_agents": {
+                    "type": "boolean"
+                  },
+                  "can_help_owner_login": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "active"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/tokens": {
+      "get": {
+        "summary": "List visible access key metadata",
+        "description": "",
+        "operationId": "get__tokens",
+        "x-roles": [
+          "owner",
+          "human"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "principal_id": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "principal_name": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "label": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "kind": {
+                            "const": "access"
+                          },
+                          "expires_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "revoked_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "principal_id",
+                          "principal_name",
+                          "label",
+                          "kind",
+                          "expires_at",
+                          "revoked_at",
+                          "created_at"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create an access key",
+        "description": "Only owner may create a key for another principal.",
+        "operationId": "post__tokens",
+        "x-roles": [
+          "owner",
+          "human"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "$ref": "#/components/schemas/Token"
+                    }
+                  },
+                  "required": [
+                    "token"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "minLength": 1
+                  },
+                  "principal_id": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "label"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tokens/{id}": {
+      "delete": {
+        "summary": "Revoke access key and its sessions",
+        "description": "Owner sees all keys; human manages own. Cannot revoke own final key.",
+        "operationId": "delete__tokens__id_",
+        "x-roles": [
+          "owner",
+          "human"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/invites": {
+      "get": {
+        "summary": "List human invitations",
+        "description": "",
+        "operationId": "get__invites",
+        "x-roles": [
+          "owner"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "claimed_by": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "revoked_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "expires_at",
+                          "claimed_by",
+                          "revoked_at",
+                          "created_at"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a 24-hour single-use human invite",
+        "description": "",
+        "operationId": "post__invites",
+        "x-roles": [
+          "owner"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "invite": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "minLength": 1
+                        },
+                        "code": {
+                          "type": "string",
+                          "maxLength": 256,
+                          "minLength": 1
+                        },
+                        "url": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "code",
+                        "url",
+                        "expires_at"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "invite"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invites/{id}": {
+      "delete": {
+        "summary": "Revoke a human invitation",
+        "description": "",
+        "operationId": "delete__invites__id_",
+        "x-roles": [
+          "owner"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/invites/redeem": {
+      "post": {
+        "summary": "Redeem a one-time invitation",
+        "description": "",
+        "operationId": "post__invites_redeem",
+        "x-roles": [
+          "public"
+        ],
+        "security": [],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "principal": {
+                      "$ref": "#/components/schemas/Principal"
+                    },
+                    "access_key": {
+                      "type": "string",
+                      "maxLength": 256,
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "principal",
+                    "access_key"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "minLength": 1
+                  },
+                  "code": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "minLength": 1,
+                    "writeOnly": true
+                  }
+                },
+                "required": [
+                  "name",
+                  "code"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/threads": {
+      "post": {
+        "summary": "Proactively create a group as any identity",
+        "description": "The creator is included automatically. Group title is required. Direct chats need exactly one other member, reuse the same pair, and cannot accept more members. Total group size is at most 32.",
+        "operationId": "post__threads",
+        "x-roles": [
+          "owner",
+          "human",
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "thread": {
+                      "$ref": "#/components/schemas/Thread"
+                    }
+                  },
+                  "required": [
+                    "thread"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "minLength": 1
+                  },
+                  "members": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "minLength": 1
+                    },
+                    "minItems": 1,
+                    "maxItems": 32,
+                    "uniqueItems": true
+                  },
+                  "kind": {
+                    "enum": [
+                      "group",
+                      "direct"
+                    ],
+                    "default": "group"
+                  }
+                },
+                "required": [
+                  "members"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List accessible groups",
+        "description": "Agents see own membership groups. Humans see all. Thread-list cursors are separate from message cursors.",
+        "operationId": "get__threads",
+        "x-roles": [
+          "owner",
+          "human",
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Thread"
+                      }
+                    },
+                    "next_cursor": {
+                      "type": "string",
+                      "pattern": "^\\d+$"
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "next_cursor",
+                    "has_more"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ]
+      }
+    },
+    "/threads/{id}": {
+      "get": {
+        "summary": "Read a group and paged message history",
+        "description": "",
+        "operationId": "get__threads__id_",
+        "x-roles": [
+          "owner",
+          "human",
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      },
+      "patch": {
+        "summary": "Rename a group",
+        "description": "Requires membership for Agents. Direct chat names follow participant identities.",
+        "operationId": "patch__threads__id_",
+        "x-roles": [
+          "owner",
+          "human",
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "thread": {
+                      "$ref": "#/components/schemas/Thread"
+                    }
+                  },
+                  "required": [
+                    "thread"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "title"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/threads/{id}/members": {
+      "post": {
+        "summary": "Add active participants to a group",
+        "description": "Agents must be existing members. New members read history and receive only future inbox deliveries.",
+        "operationId": "post__threads__id__members",
+        "x-roles": [
+          "owner",
+          "human",
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "members": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Principal"
+                      }
+                    }
+                  },
+                  "required": [
+                    "members"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "members": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "minLength": 1
+                    },
+                    "minItems": 1,
+                    "maxItems": 32,
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "members"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/threads/{id}/receiving": {
+      "get": {
+        "summary": "Read notification receiver connectivity for conversation Agents",
+        "description": "Same access rules as thread history. A live receiver does not prove model execution or processing. Null means status unavailable; periodic-only Agents can receive without a live socket.",
+        "operationId": "get__threads__id__receiving",
+        "x-roles": [
+          "owner",
+          "human",
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "principal_id": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "connected": {
+                            "type": [
+                              "boolean",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "principal_id",
+                          "connected"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/threads/{id}/activity": {
+      "get": {
+        "summary": "Read the latest 20 message handoffs and receipts",
+        "description": "",
+        "operationId": "get__threads__id__activity",
+        "x-roles": [
+          "owner",
+          "human",
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "message_id": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "seq": {
+                            "type": "integer"
+                          },
+                          "sender_id": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "minLength": 1
+                          },
+                          "type": {
+                            "enum": [
+                              "text",
+                              "json",
+                              "url",
+                              "artifact"
+                            ]
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "recipients": {
+                            "type": "array",
+                            "items": {
+                              "$ref": "#/components/schemas/Receipt"
+                            }
+                          }
+                        },
+                        "required": [
+                          "message_id",
+                          "seq",
+                          "sender_id",
+                          "type",
+                          "created_at",
+                          "recipients"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/messages": {
+      "post": {
+        "summary": "Send an idempotent group or direct message",
+        "description": "201 first send; 200 identical retry; 409 changed request. Text max 16 KiB UTF-8; JSON max 32 KiB. URL/artifact must use HTTP(S). Total request max 64 KiB. Optional reply_to preserves the source message relationship in the same accessible thread. Optional mentions restrict inbox delivery to named active members without hiding group history.",
+        "operationId": "post__messages",
+        "x-roles": [
+          "owner",
+          "human",
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Identical send replay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "$ref": "#/components/schemas/Message"
+                    },
+                    "replayed": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "replayed"
+                  ]
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "$ref": "#/components/schemas/Message"
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "replayed"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "thread_id": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "minLength": 1
+                  },
+                  "mentions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "minLength": 1
+                    },
+                    "minItems": 0,
+                    "maxItems": 32,
+                    "uniqueItems": true,
+                    "description": "Optional active member IDs to notify. Group history remains visible to every member."
+                  },
+                  "reply_to": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 80,
+                    "minLength": 1,
+                    "description": "Optional source message in the same accessible thread; requires thread_id."
+                  },
+                  "to": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "minLength": 1
+                    },
+                    "minItems": 1,
+                    "maxItems": 31,
+                    "uniqueItems": true
+                  },
+                  "type": {
+                    "enum": [
+                      "text",
+                      "json",
+                      "url",
+                      "artifact"
+                    ]
+                  },
+                  "content": {}
+                },
+                "required": [
+                  "type",
+                  "content"
+                ],
+                "oneOf": [
+                  {
+                    "required": [
+                      "thread_id"
+                    ],
+                    "not": {
+                      "required": [
+                        "to"
+                      ]
+                    }
+                  },
+                  {
+                    "required": [
+                      "to"
+                    ],
+                    "not": {
+                      "required": [
+                        "thread_id"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/messages/{id}": {
+      "get": {
+        "summary": "Read a message and all recipient receipts",
+        "description": "",
+        "operationId": "get__messages__id_",
+        "x-roles": [
+          "owner",
+          "human",
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "$ref": "#/components/schemas/Message"
+                    },
+                    "receipts": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Receipt"
+                      }
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "receipts"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/messages/{id}/ack": {
+      "post": {
+        "summary": "Acknowledge processing as the delivery recipient",
+        "description": "Idempotent. Fetching or advancing a cursor does not acknowledge.",
+        "operationId": "post__messages__id__ack",
+        "x-roles": [
+          "owner",
+          "human",
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message_id": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "minLength": 1
+                    },
+                    "acked_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "message_id",
+                    "acked_at"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/inbox": {
+      "get": {
+        "summary": "Pull this identity’s durable inbox",
+        "description": "Unacknowledged messages by default. Restart at after=0 each sweep unless pending work is durably tracked in the client.",
+        "operationId": "get__inbox",
+        "x-roles": [
+          "owner",
+          "human",
+          "agent"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessagePage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "include_acked",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                0,
+                1
+              ],
+              "default": 0
+            }
+          }
+        ]
+      }
+    },
+    "/overview": {
+      "get": {
+        "summary": "Human view of messages across all groups, newest first",
+        "description": "Human only. Agent filter matches sender or recipient. Pending and acked consider Agent recipients only; acked requires at least one Agent recipient and all have acknowledged. New members have no retrospective delivery record. Processing acknowledgment is not task completion. No global counts or unbounded history queries.",
+        "operationId": "get__overview",
+        "x-roles": [
+          "owner",
+          "human"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/OverviewMessage"
+                      }
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "next_cursor",
+                    "has_more"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "all",
+                "pending",
+                "acked"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "artifact"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/export": {
+      "get": {
+        "summary": "Export paged message history",
+        "description": "Excludes credentials and idempotency internals. Full relational backup requires D1 export.",
+        "operationId": "get__export",
+        "x-roles": [
+          "owner"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessagePage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error; see error codes in the protocol guide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "ag_session"
+      }
+    },
+    "schemas": {
+      "Principal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "owner",
+              "human",
+              "agent"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          },
+          "active": {
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "can_invite_agents": {
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "can_help_owner_login": {
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "active",
+          "created_at"
+        ]
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "seq": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "thread_id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "sender_id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "type": {
+            "enum": [
+              "text",
+              "json",
+              "url",
+              "artifact"
+            ]
+          },
+          "content": {},
+          "reply_to": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "mentions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "minItems": 1,
+            "maxItems": 32,
+            "uniqueItems": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "acked_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "seq",
+          "thread_id",
+          "sender_id",
+          "type",
+          "content",
+          "created_at"
+        ]
+      },
+      "Thread": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "group",
+              "direct"
+            ]
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "maxLength": 80,
+                  "minLength": 1
+                },
+                "name": {
+                  "type": "string",
+                  "maxLength": 80,
+                  "minLength": 1
+                },
+                "kind": {
+                  "enum": [
+                    "owner",
+                    "human",
+                    "agent"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "kind"
+              ]
+            }
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "created_by": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cursor": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "message_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "last_message_seq": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "last_message": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "text",
+                      "json",
+                      "url",
+                      "artifact"
+                    ]
+                  },
+                  "content": {},
+                  "sender_id": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "minLength": 1
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "type",
+                  "content",
+                  "sender_id",
+                  "created_at"
+                ]
+              }
+            ]
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Principal"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "created_by",
+          "created_at"
+        ]
+      },
+      "Receipt": {
+        "type": "object",
+        "properties": {
+          "recipient_id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "acked_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "recipient_id",
+          "acked_at"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "minLength": 1
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1
+              },
+              "request_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "request_id"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "Token": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "token": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "description": "One-time returned access key. Save it securely; list endpoints never return this value."
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "token"
+        ]
+      },
+      "MessagePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "has_more": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor",
+          "has_more"
+        ]
+      },
+      "ThreadPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "thread": {
+            "$ref": "#/components/schemas/Thread"
+          }
+        },
+        "required": [
+          "thread",
+          "items",
+          "next_cursor",
+          "has_more"
+        ]
+      },
+      "WakeWebhookStatus": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "const": "grokbot"
+          },
+          "state": {
+            "enum": [
+              "ready",
+              "queued",
+              "sending",
+              "retrying",
+              "accepted",
+              "idle",
+              "failed",
+              "invalid",
+              "unsupported",
+              "disabled",
+              "unknown"
+            ]
+          },
+          "attempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "last_attempt_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_accepted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "next_attempt_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_http_status": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "state",
+          "attempts",
+          "last_attempt_at",
+          "last_accepted_at",
+          "next_attempt_at",
+          "last_http_status"
+        ]
+      },
+      "WakeVerification": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "enum": [
+              "waiting",
+              "replied",
+              "acked",
+              "verified"
+            ]
+          },
+          "message_id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "thread_id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reply_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "acked_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "state",
+          "message_id",
+          "thread_id",
+          "created_at",
+          "reply_at",
+          "acked_at"
+        ]
+      },
+      "WakeConfiguration": {
+        "type": "object",
+        "properties": {
+          "supported": {
+            "type": "boolean"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "source": {
+            "enum": [
+              "private",
+              "operator",
+              null
+            ]
+          },
+          "wake_webhook": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "const": "grokbot"
+                  },
+                  "state": {
+                    "enum": [
+                      "ready",
+                      "queued",
+                      "sending",
+                      "retrying",
+                      "accepted",
+                      "idle",
+                      "failed",
+                      "invalid",
+                      "unsupported",
+                      "disabled",
+                      "unknown"
+                    ]
+                  },
+                  "attempts": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "last_attempt_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "last_accepted_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "next_attempt_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "last_http_status": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "provider",
+                  "state",
+                  "attempts",
+                  "last_attempt_at",
+                  "last_accepted_at",
+                  "next_attempt_at",
+                  "last_http_status"
+                ]
+              }
+            ]
+          },
+          "verification": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "enum": [
+                      "waiting",
+                      "replied",
+                      "acked",
+                      "verified"
+                    ]
+                  },
+                  "message_id": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "minLength": 1
+                  },
+                  "thread_id": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "minLength": 1
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "reply_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "acked_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "state",
+                  "message_id",
+                  "thread_id",
+                  "created_at",
+                  "reply_at",
+                  "acked_at"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "supported",
+          "configured",
+          "source",
+          "wake_webhook",
+          "verification"
+        ]
+      },
+      "OverviewMessage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "seq": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "thread_id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "sender_id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "type": {
+            "enum": [
+              "text",
+              "json",
+              "url",
+              "artifact"
+            ]
+          },
+          "content": {},
+          "reply_to": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "mentions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "minItems": 1,
+            "maxItems": 32,
+            "uniqueItems": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "acked_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "thread_title": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "recipient_id": {
+                  "type": "string",
+                  "maxLength": 80,
+                  "minLength": 1
+                },
+                "kind": {
+                  "enum": [
+                    "owner",
+                    "human",
+                    "agent"
+                  ]
+                },
+                "acked_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "recipient_id",
+                "kind",
+                "acked_at"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "seq",
+          "thread_id",
+          "thread_title",
+          "sender_id",
+          "type",
+          "content",
+          "created_at",
+          "recipients"
+        ]
+      }
+    }
+  }
+}

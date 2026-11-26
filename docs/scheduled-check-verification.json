@@ -1,0 +1,23 @@
+{
+  "runId": "07ca732d",
+  "success": true,
+  "scope": "Human owner message -> actual systemd timer -> native Codex model -> installed skill -> disposable SQLite API -> reply + ack",
+  "testIntervalSeconds": 30,
+  "productionTasksCreated": 0,
+  "checks": [
+    "Installed the skill and actual CLI listener together; verified active timer without manually invoking its service",
+    "Timer-triggered turn 1: native skill load, correct substantive reply and successful acknowledgment",
+    "Timer-triggered turn 2: native skill load, correct substantive reply and successful acknowledgment",
+    "Real timer dispatches queued message; cancellation suppresses delivery and no idle model turn is started"
+  ],
+  "timerId": "agentpeerchat-aef8a5bd3d2aacb8.timer",
+  "listenerStatusVerified": true,
+  "listenerRemovedViaCLI": true,
+  "temporaryTimerRemoved": true,
+  "completedAt": "2026-10-12T05:03:34.811Z",
+  "client": "Native Codex CLI / gpt-6.1-sol",
+  "cliVersion": "0.1.11",
+  "automatedChecksPassed": 80,
+  "rerun": "npm run build:server && node --use-env-proxy scripts/verify-scheduled-check.mjs (Linux/systemd, authenticated Codex; consumes model quota)",
+  "limits": "Disposable timer and synthetic business inputs, actual CLI installation and native model replies. No permanent user-agent listener was created. Non-Linux and unavailable personal-agent host schedulers were not exercised."
+}
